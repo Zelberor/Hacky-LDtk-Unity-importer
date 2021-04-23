@@ -3,17 +3,22 @@ using UnityEngine;
 using UnityEngine.Tilemaps;
 using UnityEditor;
 
-namespace LEd {
+namespace LDtk {
 
 [System.Serializable]
 public class Level {
+	//public string __bgColor; not implemented
+	//public x __bgPos; not implemented
+	//public x __neighbours; not implemented
 	public string identifier;
 	public int uid;
 	public int pxWid;
 	public int pxHei;
+	//public int worldX; not implemented
+	//public int worldY;
 	public LayerInstance[] layerInstances;
 
-	public bool import(string importDir, int pixelsPerUnit, ImportedTileset[] tilesets, Layer[] layers) {
+	public bool import(string importDir, int pixelsPerUnit, ImportedTileset[] tilesets) {
 		GameObject baseObject = null;
 		bool success = true;
 		try {
@@ -21,7 +26,7 @@ public class Level {
 			baseObject = new GameObject(identifier + "_" + uid);
 			int sortingOrderAddition = 1;
 			for (int i = 0; i < layerInstances.Length; ++i) {
-				if (!layerInstances[i].import(ref baseObject, pixelsPerUnit, tilesets, layers, ref sortingOrderAddition)) {
+				if (!layerInstances[i].import(ref baseObject, pixelsPerUnit, tilesets,  ref sortingOrderAddition)) {
 					Debug.LogError("Failed to import layerInstance \"" + layerInstances[i].__identifier + "\" in level \"" + identifier + "\".");
 					success = false;
 					break;
@@ -50,19 +55,25 @@ public class LayerInstance {
 	public int __cWid; // layer width (grid based)
 	public int __cHei; // layer height (grid based)
 	public int __gridSize;
+	//public float __opacity; not implemented
+	//public bool visible; not implemented
 	public int levelId;
 	public int layerDefUid = -1;
+	public int __tilesetDefUid = -1;
 	public int pxOffsetX; // optional offset that could happen when resizing levels
 	public int pxOffsetY;
+	//public int __pxTotalOffsetX; should be used instead of pxOffsetX, but lazyness exists
+	//public int __pxTotalOffsetY;
 	public int seed;
-	public IntGridTile[] intGrid; // only populated if layer is an IntGrid
-	public Autotile[] autoTiles; // only populated if layer is an Auto-layer
-	public GridTile[] gridTiles; // only populated if layer is a TileLayer
+	public int[] intGridCsv; // only populated if layer is an IntGrid
+	public TileInstance[] autoLayerTiles; // only populated if layer is an Auto-layer
+	public TileInstance[] gridTiles; // only populated if layer is a TileLayer
 	public EntityInstance[] entityInstances; // only populated if layer is an EntityLayer
 
-	public bool import(ref GameObject baseObjectInOut, int pixelsPerUnit, ImportedTileset[] tilesets, Layer[] layers, ref int sortingOrderAddition) {
+	public bool import(ref GameObject baseObjectInOut, int pixelsPerUnit, ImportedTileset[] tilesets, ref int sortingOrderAddition) {
 		if (__type == "IntGrid" || __type == "AutoLayer" || __type == "Tiles") {
-			int tileSetIndex = getMatchingImportedTilesetIndex(tilesets, layers);
+			int tileSetIndex = getMatchingImportedTilesetIndex(tilesets, __tilesetDefUid);
+			
 			if (tileSetIndex < 0) {
 				Debug.LogWarning("Layerinstance \"" + __identifier + "\" has type \"" + __type + "\", but no matching tileset has been found. Layerinstance will be skipped.");
 			} else {
@@ -83,12 +94,12 @@ public class LayerInstance {
 		float gridOffsetX = ((float) pxOffsetX) / ((float) pixelsPerUnit);
 		float gridOffsetY = ((float) pxOffsetY) / ((float) pixelsPerUnit);
 		Vector3 gridOffset = new Vector3(gridOffsetX, gridOffsetY, 0);
-		TilemapStackMaker tilemaps = new TilemapStackMaker(ref baseObjectInOut, baseName, pixelsPerUnit, sortingOrderAddition, gridOffset);
+		TilemapStackMaker tilemaps = new TilemapStackMaker(ref baseObjectInOut, baseName, pixelsPerUnit, sortingOrderAddition, gridOffset, __gridSize);
 
 		//Import stuff into tilemap
 		Vector2Int tileSize = new Vector2Int(__gridSize, __gridSize);
-		for (int i = autoTiles.Length - 1; i >= 0 ; --i) {
-			if (!autoTiles[i].import(ref tilemaps, tileset, tileSize)) {
+		for (int i = autoLayerTiles.Length - 1; i >= 0 ; --i) {
+			if (!autoLayerTiles[i].import(ref tilemaps, tileset, tileSize)) {
 				Debug.LogError("Failed to import autoTiles[" + i + "] into " + baseName + ".");
 				return false;
 			}
@@ -103,19 +114,7 @@ public class LayerInstance {
 		return true;
 	}
 
-	public int getMatchingImportedTilesetIndex(in ImportedTileset[] tilesets, in Layer[] layers) {
-		int tileSetUID = -1;
-		for (int i = 0; i < layers.Length; ++i) {
-			if (layers[i].identifier == __identifier) {
-				tileSetUID = layers[i].autoTilesetDefUid;
-				break;
-			}
-		}
-		if (tileSetUID < 0) {
-			Debug.LogWarning("Matching layer with identifier \"" + __identifier + "\" not found in dataset.");
-			return -1;
-		}
-
+	public int getMatchingImportedTilesetIndex(in ImportedTileset[] tilesets, int tileSetUID) {
 		int tileSetIndex = -1;
 		for (int i = 0; i < tilesets.Length; ++i) {
 			if (tilesets[i].uid == tileSetUID) {
@@ -131,85 +130,35 @@ public class LayerInstance {
 }
 
 [System.Serializable]
-public class IntGridTile {
-	public int coordId;
-	public int v;
-}
-
-[System.Serializable]
-public class Autotile {
-	public int ruleId;
-	public AutotileResult[] results;
+public class TileInstance {
+	public int f; //flip bits
+	public int[] px; //pixel coordinates of tile in [x, y] format
+	//public int[] src; not used
+	public int t; //tile id
 
 	public bool import(ref TilemapStackMaker mapInOut, ImportedTileset tileset, Vector2Int tileSize) {
-		for (int i = results.Length - 1; i >= 0; --i) {
-			if (!results[i].import(ref mapInOut, tileset, tileSize)) {
-				return false;
-			}
-		}
-		return true;
-	}
-}
-
-[System.Serializable]
-public class AutotileResult {
-	public int coordId;
-	public AutotileResultTile[] tiles;
-	public int flips;
-
-	public bool import(ref TilemapStackMaker mapInOut, ImportedTileset tileset, Vector2Int tileSize) {
-		Matrix4x4 symMat = LevelTools.createSymmetryMatrix(isXSym(), isYSym());
-		for (int i = tiles.Length - 1; i >= 0; --i) {
-			Tile tile = null;
-			if (!tileset.getTile(tiles[i].tileId, ref tile)) {
-				return false;
-			}
-			Vector3Int pos = new Vector3Int(tiles[i].__x, tiles[i].__y, 0);
-			mapInOut.setTileAndTransformMatrix(pos, symMat, tile, tileSize);
-		}
-		return true;
-	}
-
-	public bool isXSym() {
-		return (flips & 1) > 0;
-	}
-
-	public bool isYSym() {
-		return (flips & 2) > 0;
-	}
-}
-
-[System.Serializable]
-public class AutotileResultTile {
-	public int tileId;
-	public int __x;
-	public int __y;
-	public int __srcX;
-	public int __srcY;
-}
-
-[System.Serializable]
-public class GridTile {
-	public int coordId;
-	public int tileId;
-	public int __x;
-	public int __y;
-	public int __srcX;
-	public int __srcY;
-
-	public bool import(ref TilemapStackMaker mapInOut, ImportedTileset tileset, Vector2Int tileSize) {
-		Vector3Int pos = new Vector3Int(__x, __y, 0);
+		Matrix4x4 symMat = LevelTools.createSymmetryMatrix(isXFlip(), isYFlip());
 		Tile tile = null;
-		if (!tileset.getTile(tileId, ref tile)) {
+		if (!tileset.getTile(t, ref tile)) {
 			return false;
 		}
-		mapInOut.setTileAndTransformMatrix(pos, Matrix4x4.identity, tile, tileSize);
+		Vector3Int pos = new Vector3Int(px[0], px[1], 0);
+		mapInOut.setTileAndTransformMatrix(pos, symMat, tile, tileSize);
 		return true;
+	}
+
+	public bool isXFlip() {
+		return (f & 1) > 0;
+	}
+
+	public bool isYFlip() {
+		return (f & 2) > 0;
 	}
 }
 
 [System.Serializable]
 public class EntityInstance {
+	//needs to be updated and implemented
 	public string __identifier;
 	public int __cx;
 	public int __cy;
@@ -236,11 +185,13 @@ public class TilemapStackMaker {
 	private GameObject grid;
 	private string tilemapName;
 	private int sortingOrderAddition;
+	private int tileSize;
 
-	public TilemapStackMaker(ref GameObject baseObjectInOut, string baseName, int pixelsPerUnit, int sortingOrderAddition, Vector3 gridOffset) {
+	public TilemapStackMaker(ref GameObject baseObjectInOut, string baseName, int pixelsPerUnit, int sortingOrderAddition, Vector3 gridOffset, int tileSize) {
 		tilemaps = new List<Tilemap>(1);
 		tilemapName = "Tilemap_" + baseName;
 		this.sortingOrderAddition = sortingOrderAddition;
+		this.tileSize = tileSize;
 		string gridName = "Grid_" + baseName;
 
 		//Setup grid
@@ -329,14 +280,16 @@ public class TilemapStackMaker {
 		Tilemap tilemap = tilemapChild.AddComponent<Tilemap>();
 		//Create tilemap renderer
 		TilemapRenderer render = tilemapChild.AddComponent<TilemapRenderer>();
-		render.sortingOrder = -(tilemaps.Count + sortingOrderAddition);
+		render.sortingOrder = -(sortingOrderAddition + maxLayers - 1) + tilemaps.Count; //Weird calculation for proper sorting
 		render.sortOrder = TilemapRenderer.SortOrder.TopLeft;
+		render.detectChunkCullingBounds = TilemapRenderer.DetectChunkCullingBounds.Manual;
+		render.chunkCullingBounds = new Vector3(tileSize + 1, tileSize + 1, 0);
 
 		tilemaps.Add(tilemap);
 	}
 
 	public int getNextSortingOrderAddition() {
-		return tilemaps.Count + sortingOrderAddition;
+		return maxLayers + sortingOrderAddition;
 	}
 }
 

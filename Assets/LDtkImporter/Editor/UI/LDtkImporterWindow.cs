@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 
-namespace LEd {
+namespace LDtk {
 public class ImporterWindow : EditorWindow {
 
-	private const string windowName = "LEd Importer";
+	private const string windowName = "LDtk Importer";
 	private string jsonPath = "";
 	private int pixelsPerUnit = 16;
 	private string importDir = "";
@@ -19,15 +19,16 @@ public class ImporterWindow : EditorWindow {
 
 	void OnGUI() {
 		//Window code
-		string jsonImportMessage = "Choose LEd .json to import:";
+		string jsonImportMessage = "Choose LEd file to import:";
 		GUILayout.Label(jsonImportMessage);
 		EditorGUILayout.BeginHorizontal();
-		jsonPath = EditorGUILayout.TextField("Json Path", jsonPath);
+		jsonPath = EditorGUILayout.TextField("LDtk/Json Path", jsonPath);
 		bool browse = GUILayout.Button("Browse");
 		EditorGUILayout.EndHorizontal();
 
 		pixelsPerUnit = EditorGUILayout.IntField("Pixels per unit", pixelsPerUnit);
-		importDir = EditorGUILayout.TextField("Import directory (relative to Assets)", importDir);
+		importDir = EditorGUILayout.TextField("Import directory", importDir);
+		GUILayout.Label("(relative to Assets)");
 		importDir = GeneralTools.fixDir(importDir);
 
 		TilemapStackMaker.maxLayers = EditorGUILayout.IntField("Maximum Tilemaps per Layer", TilemapStackMaker.maxLayers);
@@ -45,7 +46,7 @@ public class ImporterWindow : EditorWindow {
 		}
 
 		if (browse) {
-			jsonPath = EditorUtility.OpenFilePanelWithFilters(jsonImportMessage, "./", new string[] {"Json file", "json"});
+			jsonPath = EditorUtility.OpenFilePanelWithFilters(jsonImportMessage, "./", new string[] {"LDtk file", "ldtk", "Json file", "json"});
 		}
 
 		bool import = GUILayout.Button("Import");

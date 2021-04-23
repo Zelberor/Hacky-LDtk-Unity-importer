@@ -1,5 +1,5 @@
 
-namespace LEd {
+namespace LDtk {
 
 [System.Serializable]
 public class ProjectJSON {
@@ -8,8 +8,10 @@ public class ProjectJSON {
 	public float defaultPivotX;
 	public float defaultPivotY;
 	public int defaultGridSize;
+	public bool externalLevels;
 	public string bgColor;
 	public int nextUid;
+	//public string worldLayout; not implemented
 	public Defs defs;
 	public Level[] levels;
 }

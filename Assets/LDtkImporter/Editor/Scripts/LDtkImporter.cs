@@ -4,11 +4,11 @@ using System.IO;
 using UnityEngine;
 using UnityEditor;
 
-namespace LEd {
+namespace LDtk {
 public static class Importer
 {
-	public const string supportedApp = "LEd";
-	public const string supportedAppVersion = "0.3.2-beta";
+	public const string supportedApp = "LDtk";
+	public const string supportedAppVersion = "0.9.3";
 	
 
 	public static bool import(string jsonPath, string importDir, int pixelsPerUnit) {
@@ -36,6 +36,10 @@ public static class Importer
 			Debug.LogError("Unsupported app version: " + projectData.__header__.appVersion);
 			return false;
 		}
+		if (projectData.externalLevels) {
+			Debug.LogError("External Levels are currently not supported");
+			return false;
+		}
 
 		string jsonDir = GeneralTools.fixDir(Path.GetDirectoryName(jsonPath));
 		string tilesetsDir = importDir;
@@ -53,7 +57,7 @@ public static class Importer
 
 		// Import levels
 		for (int i = 0; i < projectData.levels.Length; ++i) {
-			if (!projectData.levels[i].import(importDir, pixelsPerUnit, importedTilesets, projectData.defs.layers)) {
+			if (!projectData.levels[i].import(importDir, pixelsPerUnit, importedTilesets)) {
 				Debug.LogError("Importing level " + i + " \"" + projectData.levels[i].identifier + "\" failed.");
 				return false;
 			}

@@ -4,13 +4,14 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
-namespace LEd {
+namespace LDtk {
 
 [System.Serializable]
 public class Defs {
 	public Layer[] layers;
 	//entities not implemented;
 	public Tileset[] tilesets;
+	//levelFields not implemented
 	//enums not implemented;
 	//externalEnums not implemented;
 }
